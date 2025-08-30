@@ -359,7 +359,7 @@ export default function CreateReferralPage() {
             <CardDescription>Upload medical reports, X-rays, and other relevant documents</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+            <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
               <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <div className="space-y-2">
                 <p className="text-sm font-medium">Upload Medical Documents</p>
