@@ -192,7 +192,7 @@ export function AppSidebar() {
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
+          {/* <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Sign out">
               <Button
                 variant="ghost"
@@ -203,7 +203,7 @@ export function AppSidebar() {
                 <span>Sign out</span>
               </Button>
             </SidebarMenuButton>
-          </SidebarMenuItem>
+          </SidebarMenuItem> */}
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
