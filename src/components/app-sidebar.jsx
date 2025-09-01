@@ -28,7 +28,7 @@ import {
     SidebarMenuItem,
     SidebarRail,
 } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 // Navigation items
 const navigationItems = [
@@ -171,9 +171,9 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                            <div className="flex items-center gap-2 p-2">
+                            <div className="flex items-center gap-2 p-2 mb-2">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                                    <User className="h-4 w-4" />
+                                    <UserButton />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                     <span className="truncate font-semibold">
