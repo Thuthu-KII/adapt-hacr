@@ -9,7 +9,7 @@ export async function checkUserExists(clerk_id) {
   const supabase = createClient();
 
   const { data, error } = await supabase
-    .from("hospitals")
+    .from("users")
     .select("*")
     .eq("clerk_id", clerk_id);
 
@@ -25,7 +25,7 @@ export async function checkOnboardingStatus(clerk_id) {
   const supabase = createClient();
 
   const { data, error } = await supabase
-    .from("hospitals")
+    .from("users")
     .select("onboarding_complete")
     .eq("clerk_id", clerk_id)
     .single();
@@ -38,12 +38,12 @@ export async function checkOnboardingStatus(clerk_id) {
   return data ? data.onboarding_complete : false;
 }
 
-export async function createUser(clerk_id, email) {
+export async function createUser(clerk_id, email, name) {
   const supabase = createClient();
 
   const { data, error } = await supabase
-    .from("hospitals")
-    .insert([{ clerk_id, email, onboarding_complete: false }])
+    .from("users")
+    .insert([{ clerk_id, email, name, onboarding_complete: false }])
     .select();
 
   if (error) {

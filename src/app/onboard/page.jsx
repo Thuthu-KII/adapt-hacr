@@ -1,29 +1,83 @@
 "use client"
 
-import { useState } from "react"
+import GooglePlacesAutocomplete from "@/components/GooglePlacesAutocomplete"
+import SearchableInput from "@/components/searchable-input"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createClient } from "@/utils/supabase/client"
+import { useUser } from "@clerk/nextjs"
 import {
-    Hospital,
-    User,
-    Phone,
-    Building,
-    Users,
-    FileText,
-    CheckCircle,
-    ArrowRight,
     ArrowLeft,
+    ArrowRight,
+    Building,
+    CheckCircle,
+    CircleSmall,
     Clock,
-    Shield,
+    Hospital,
+    LoaderCircle,
     Search,
+    Shield,
+    Trash2,
+    User
 } from "lucide-react"
 import Link from "next/link"
+import { useEffect, useState } from "react"
+
+export const DEPARTMENTS = [
+    // General & Primary Care
+    { value: "general-medicine", title: "General Medicine / Family Medicine" },
+    { value: "internal-medicine", title: "Internal Medicine" },
+
+    // Emergency & Critical Care
+    { value: "emergency", title: "Emergency" },
+    { value: "icu", title: "Intensive Care Unit (ICU)" },
+    { value: "high-care", title: "High Care Unit" },
+
+    // Surgical
+    { value: "general-surgery", title: "General Surgery" },
+    { value: "orthopedics", title: "Orthopedics" },
+    { value: "neurosurgery", title: "Neurosurgery" },
+    { value: "cardiothoracic-surgery", title: "Cardiothoracic Surgery" },
+    { value: "plastic-surgery", title: "Plastic & Reconstructive Surgery" },
+    { value: "ent-surgery", title: "ENT (Ear, Nose, Throat)" },
+
+    // Medical Specialties
+    { value: "cardiology", title: "Cardiology" },
+    { value: "pulmonology", title: "Pulmonology / Respiratory Medicine" },
+    { value: "gastroenterology", title: "Gastroenterology" },
+    { value: "nephrology", title: "Nephrology" },
+    { value: "endocrinology", title: "Endocrinology" },
+    { value: "rheumatology", title: "Rheumatology" },
+    { value: "oncology", title: "Oncology" },
+    { value: "hematology", title: "Hematology" },
+    { value: "dermatology", title: "Dermatology" },
+    { value: "neurology", title: "Neurology" },
+    { value: "infectious-diseases", title: "Infectious Diseases" },
+
+    // Women & Children’s Health
+    { value: "obgyn", title: "Obstetrics & Gynecology (OB/GYN)" },
+    { value: "pediatrics", title: "Pediatrics" },
+    { value: "neonatology", title: "Neonatology" },
+
+    // Diagnostic & Support
+    { value: "radiology", title: "Radiology / Imaging" },
+    { value: "pathology", title: "Pathology / Laboratory" },
+    { value: "pharmacy", title: "Pharmacy" },
+
+    // Rehabilitation & Allied Health
+    { value: "physiotherapy", title: "Physiotherapy" },
+    { value: "occupational-therapy", title: "Occupational Therapy" },
+    { value: "speech-therapy", title: "Speech & Language Therapy" },
+    { value: "psychiatry", title: "Psychiatry" },
+    { value: "psychology", title: "Psychology" },
+    { value: "nutrition", title: "Nutrition & Dietetics" },
+];
+
 
 const steps = [
     {
@@ -43,30 +97,44 @@ const steps = [
     },
     {
         id: 4,
-        title: "System Overview",
-        description: "Learn how MedRef works",
-    },
-    {
-        id: 5,
         title: "You're All Set!",
         description: "Ready to start making referrals",
     },
 ]
 
 export default function OnboardPage() {
+    const { user } = useUser();
+
     const [currentStep, setCurrentStep] = useState(1)
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
+    const [userData, setUserData] = useState({
+        name: "",
         role: "",
-        facilityName: "",
-        facilityType: "",
-        location: "",
-        departments: "",
-        capacity: "",
+        hospital_id: "",
+        onboarding_complete: true,
     })
+    const [facilityData, setFacilityData] = useState({
+        name: "",
+        type: "",
+        whatsapp_number: "",
+        address_line1: "",
+        city: "",
+        province: "",
+        postal_code: "",
+        country: "",
+        latitude: "",
+        longitude: "",
+    })
+    const [isCreatingFacility, setIsCreatingFacility] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    /**
+     * @type {Array<{
+     *   hospital_id: string,
+     *   department: string,
+     *   capacity_total: number,
+     *   capacity_available: number
+     * }>}
+     */
+    const [departmentData, setDepartmentData] = useState([])
 
     const progress = (currentStep / steps.length) * 100
 
@@ -82,8 +150,106 @@ export default function OnboardPage() {
         }
     }
 
-    const handleInputChange = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }))
+    const handleInputChange = (field, value, isFacilityField = false) => {
+        if (isFacilityField) {
+            setFacilityData((prev) => ({ ...prev, [field]: value }))
+        } else {
+            setUserData((prev) => ({ ...prev, [field]: value }))
+        }
+    }
+
+    const handleFacilityLocationSelect = (locationData) => {
+        setFacilityData((prev) => ({
+            ...prev,
+            ...locationData,
+        }))
+    }
+
+    const searchFacilities = async (
+        query
+    ) => {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from("hospitals")
+            .select("id, name")
+            .ilike("name", `%${query}%`);
+        return { data: data ?? [], error };
+    };
+
+    const createFacility = async (facilityData) => {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from("hospitals")
+            .insert([facilityData])
+            .select();
+        if (error) {
+            console.error("Error creating facility:", error);
+            return null;
+        }
+        return data;
+    };
+
+    const updateUser = async (userId, updates) => {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from("users")
+            .update(updates)
+            .eq("clerk_id", userId)
+            .select()
+            .single();
+        if (error) {
+            console.error("Error updating user:", error);
+            return null;
+        }
+        return data;
+    };
+
+    const insertDepartments = async (departments) => {
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from("hospital_capacity")
+            .insert(departments)
+            .select();
+
+        if (error) {
+            console.error("Error inserting departments:", error);
+            return null;
+        }
+        return data;
+    };
+
+    const handleSubmit = async () => {
+        try {
+            setIsSubmitting(true);
+            let facilityId = facilityData.id;
+
+            if (isCreatingFacility) {
+                // Create the facility first
+                const newFacility = await createFacility(facilityData);
+                if (newFacility && newFacility.length > 0) {
+                    facilityId = newFacility[0].id;
+                    setUserData((prev) => ({
+                        ...prev,
+                        hospital_id: facilityId,
+                    }));
+                    setFacilityData((prev) => ({ ...prev, id: facilityId }));
+                }
+            }
+            // Now update the user with the new facility ID
+            await updateUser(user.id, { ...userData, hospital_id: facilityId });
+
+            // Insert departments with the new facility ID
+            const departments = departmentData.map((dept) => ({
+                ...dept,
+                hospital_id: facilityId,
+            }));
+            await insertDepartments(departments);
+        } catch (error) {
+            console.error("Error during submission:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+
     }
 
     const renderStepContent = () => {
@@ -97,7 +263,7 @@ export default function OnboardPage() {
                         <div className="space-y-4">
                             <h2 className="text-3xl font-bold text-balance">Welcome to MedRef</h2>
                             <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-                                You're about to join a network of healthcare professionals streamlining patient referrals across Kenya.
+                                You're about to join a network of healthcare professionals streamlining patient referrals across South Africa.
                                 Let's get you set up in just a few minutes.
                             </p>
                         </div>
@@ -141,47 +307,19 @@ export default function OnboardPage() {
                             <h2 className="text-2xl font-bold">Your Profile</h2>
                             <p className="text-muted-foreground">Help us personalize your MedRef experience</p>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid md:grid-cols-1 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="firstName">First Name</Label>
+                                <Label htmlFor="name">Name</Label>
                                 <Input
-                                    id="firstName"
-                                    value={formData.firstName}
-                                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                                    placeholder="Enter your first name"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="lastName">Last Name</Label>
-                                <Input
-                                    id="lastName"
-                                    value={formData.lastName}
-                                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                                    placeholder="Enter your last name"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => handleInputChange("email", e.target.value)}
-                                    placeholder="your.email@hospital.com"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number</Label>
-                                <Input
-                                    id="phone"
-                                    value={formData.phone}
-                                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                                    placeholder="+254 700 123 456"
+                                    id="name"
+                                    value={userData.name}
+                                    onChange={(e) => handleInputChange("name", e.target.value)}
+                                    placeholder="Enter your name"
                                 />
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label htmlFor="role">Your Role</Label>
-                                <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+                                <Select value={userData.role} onValueChange={(value) => handleInputChange("role", value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select your role" />
                                     </SelectTrigger>
@@ -189,8 +327,6 @@ export default function OnboardPage() {
                                         <SelectItem value="doctor">Doctor</SelectItem>
                                         <SelectItem value="nurse">Nurse</SelectItem>
                                         <SelectItem value="administrator">Administrator</SelectItem>
-                                        <SelectItem value="coordinator">Referral Coordinator</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -208,22 +344,44 @@ export default function OnboardPage() {
                             <h2 className="text-2xl font-bold">Facility Information</h2>
                             <p className="text-muted-foreground">Tell us about your healthcare facility</p>
                         </div>
-                        <div className="space-y-4">
+
+                        {isCreatingFacility ? (<div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="location">Facility Location</Label>
+                                <GooglePlacesAutocomplete
+                                    id="location"
+                                    value={facilityData.location}
+                                    onChange={(value) => handleInputChange("location", value, true)}
+                                    onSelect={handleFacilityLocationSelect}
+                                    placeholder="e.g., Nairobi, South Africa"
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="facilityName">Facility Name</Label>
                                 <Input
                                     id="facilityName"
-                                    value={formData.facilityName}
-                                    onChange={(e) => handleInputChange("facilityName", e.target.value)}
+                                    value={facilityData.name}
+                                    onChange={(e) => handleInputChange("name", e.target.value, true)}
                                     placeholder="e.g., Nairobi Hospital"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
+
+                                <Input
+                                    id="whatsapp_number"
+                                    type="tel"
+                                    value={`${facilityData.whatsapp_number}`}
+                                    onChange={(e) => handleInputChange("whatsapp_number", e.target.value, true)}
+                                    placeholder="e.g., +27724802453"
                                 />
                             </div>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="facilityType">Facility Type</Label>
                                     <Select
-                                        value={formData.facilityType}
-                                        onValueChange={(value) => handleInputChange("facilityType", value)}
+                                        value={facilityData.type}
+                                        onValueChange={(value) => handleInputChange("type", value, true)}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select facility type" />
@@ -238,111 +396,91 @@ export default function OnboardPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="location">Location</Label>
-                                    <Input
-                                        id="location"
-                                        value={formData.location}
-                                        onChange={(e) => handleInputChange("location", e.target.value)}
-                                        placeholder="e.g., Nairobi, Kenya"
-                                    />
-                                </div>
+
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="departments">Available Departments</Label>
-                                <Textarea
-                                    id="departments"
-                                    value={formData.departments}
-                                    onChange={(e) => handleInputChange("departments", e.target.value)}
-                                    placeholder="e.g., Emergency, Cardiology, Pediatrics, Surgery..."
-                                    rows={3}
-                                />
+                                <Select
+                                    onValueChange={(value) => {
+                                        console.log(value);
+                                        const updatedDepartmentData = [...departmentData];
+                                        updatedDepartmentData.push({
+                                            department: value,
+                                            capacity_total: 0,
+                                            capacity_available: 0,
+                                        });
+                                        setDepartmentData(updatedDepartmentData);
+                                    }}
+                                >
+                                    <SelectTrigger >
+                                        <SelectValue placeholder="Select department" />
+                                    </SelectTrigger>
+                                    <SelectContent position="bottom">
+                                        {DEPARTMENTS.map((dept) => (
+                                            <SelectItem key={dept.value} value={dept.value}>
+                                                {dept.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {departmentData.length > 0 && (<div className="mt-2 flex flex-col">
+                                    <div className="text-muted-foreground text-sm grid grid-cols-2">
+                                        <Label>Selected Departments</Label>
+                                        <Label>Capacity</Label>
+                                    </div>
+                                    <ul className="grid grid-cols-1 flex-wrap gap-2">
+                                        {departmentData.map((dept, index) => (
+                                            <li key={index} className="rounded-md py-1 grid grid-cols-2">
+                                                <span className="flex items-center gap-2">
+                                                    <CircleSmall className="w-3 h-3 text-foreground" fill="currentColor" />
+                                                    <span>{dept.department}</span>
+                                                </span>
+
+                                                <div className="flex items-center gap-2">
+                                                    <Input type="number" placeholder="Capacity" className="w-24" min={0} value={dept.capacity_total} onChange={(e) => {
+                                                        const updatedDepartmentData = [...departmentData];
+                                                        updatedDepartmentData[index].capacity_total = Number(e.target.value);
+                                                        setDepartmentData(updatedDepartmentData);
+                                                    }} />
+                                                    <Button variant={"ghost"} size={"icon"} onClick={() => {
+                                                        const updatedDepartmentData = departmentData.filter((_, i) => i !== index);
+                                                        setDepartmentData(updatedDepartmentData);
+                                                    }}>
+                                                        <Trash2 className="w-5 h-5 text-red-500" />
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>)}
+
+
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="capacity">Bed Capacity (Optional)</Label>
-                                <Input
-                                    id="capacity"
-                                    type="number"
-                                    value={formData.capacity}
-                                    onChange={(e) => handleInputChange("capacity", e.target.value)}
-                                    placeholder="e.g., 150"
-                                />
-                            </div>
-                        </div>
+                        </div>) : (<SearchableInput
+                            dbCall={searchFacilities}
+                            onSelect={(item) => {
+                                setUserData((prev) => ({
+                                    ...prev,
+                                    hospital_id: item.id,
+                                }));
+                                setFacilityData((prev) => ({ ...prev, id: item.id }));
+                            }}
+                            selected={facilityData}
+                            isCreationAllowed={true}
+                            createSearchType={() =>
+                                setIsCreatingFacility(true)
+
+                            }
+                            placeholder="Search for a facility..."
+                            getLabel={(item) => item.name}
+                            clearOnSelect={true}
+                        />)}
+
+
                     </div>
                 )
 
             case 4:
-                return (
-                    <div className="space-y-6">
-                        <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-warning-amber/10 rounded-full flex items-center justify-center mx-auto">
-                                <FileText className="w-8 h-8 text-warning-amber" />
-                            </div>
-                            <h2 className="text-2xl font-bold">How MedRef Works</h2>
-                            <p className="text-muted-foreground">Quick overview of the referral process</p>
-                        </div>
-                        <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 bg-medical-blue rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-sm font-semibold text-medical-blue-foreground">1</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">Create a Referral</h3>
-                                    <p className="text-muted-foreground text-sm">
-                                        Fill out patient details, medical condition, and urgency level. Upload relevant documents and test
-                                        results.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 bg-trust-green rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-sm font-semibold text-trust-green-foreground">2</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">Smart Hospital Matching</h3>
-                                    <p className="text-muted-foreground text-sm">
-                                        Our AI finds the best hospitals based on capacity, distance, specialization, and patient needs.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 bg-warning-amber rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-sm font-semibold text-warning-amber-foreground">3</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">Real-Time Response</h3>
-                                    <p className="text-muted-foreground text-sm">
-                                        Receiving hospitals get instant notifications and can accept or decline with reasons.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 bg-medical-blue rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-sm font-semibold text-medical-blue-foreground">4</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">Patient Communication</h3>
-                                    <p className="text-muted-foreground text-sm">
-                                        Automated WhatsApp messages keep patients informed about their referral status and next steps.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <CheckCircle className="w-5 h-5 text-trust-green" />
-                                <span className="font-semibold">Pro Tip</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                                Use the priority levels (Low, Medium, High, Critical) to ensure urgent cases get immediate attention.
-                                Critical cases are automatically escalated to multiple hospitals.
-                            </p>
-                        </div>
-                    </div>
-                )
-
-            case 5:
                 return (
                     <div className="text-center space-y-6">
                         <div className="w-20 h-20 bg-trust-green/10 rounded-full flex items-center justify-center mx-auto">
@@ -351,41 +489,8 @@ export default function OnboardPage() {
                         <div className="space-y-4">
                             <h2 className="text-3xl font-bold text-balance">You're All Set!</h2>
                             <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-                                Welcome to the MedRef network, {formData.firstName}! You can now start making referrals and help improve
+                                Welcome to the MedRef network! You can now start making referrals and help improve
                                 patient outcomes across our healthcare system.
-                            </p>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-4 mt-8">
-                            <Card className="border-2 hover:border-medical-blue/20 transition-colors">
-                                <CardHeader className="text-center">
-                                    <div className="w-12 h-12 bg-medical-blue/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                                        <FileText className="w-6 h-6 text-medical-blue" />
-                                    </div>
-                                    <CardTitle className="text-lg">Make Your First Referral</CardTitle>
-                                    <CardDescription>
-                                        Start by creating a referral for a patient who needs specialized care
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                            <Card className="border-2 hover:border-trust-green/20 transition-colors">
-                                <CardHeader className="text-center">
-                                    <div className="w-12 h-12 bg-trust-green/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                                        <Users className="w-6 h-6 text-trust-green" />
-                                    </div>
-                                    <CardTitle className="text-lg">Explore the Network</CardTitle>
-                                    <CardDescription>
-                                        Browse connected hospitals and their available departments and capacity
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </div>
-                        <div className="bg-medical-blue/5 border border-medical-blue/20 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Phone className="w-5 h-5 text-medical-blue" />
-                                <span className="font-semibold">Need Help?</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                                Our support team is available 24/7 at +254-700-123-456 or support@medref.co.ke
                             </p>
                         </div>
                     </div>
@@ -396,10 +501,25 @@ export default function OnboardPage() {
         }
     }
 
+    useEffect(() => {
+        if (currentStep === steps.length) {
+            handleSubmit();
+        }
+    }, [currentStep]);
+
+    useEffect(() => {
+        if (user) {
+            setUserData((prev) => ({
+                ...prev,
+                name: user.fullName || "",
+            }))
+        }
+    }, [user]);
+
     return (
         <div className="max-h-screen bg-background overflow-y-scroll">
             {/* Header */}
-            <header className="sticky top-0 border-b bg-card/50 backdrop-blur-sm">
+            <header className="sticky top-0 border-b bg-card/50 backdrop-blur-sm z-10">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -432,10 +552,6 @@ export default function OnboardPage() {
             <main className="container mx-auto px-4 py-8">
                 <div className="max-w-3xl mx-auto">
                     <Card className="border-2">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-2xl">{steps[currentStep - 1].title}</CardTitle>
-                            <CardDescription className="text-lg">{steps[currentStep - 1].description}</CardDescription>
-                        </CardHeader>
                         <CardContent className="space-y-6">
                             {renderStepContent()}
 
@@ -452,10 +568,11 @@ export default function OnboardPage() {
                                 </Button>
 
                                 {currentStep === steps.length ? (
-                                    <Button asChild className="flex items-center gap-2">
+                                    <Button asChild className="flex items-center gap-2" disabled={isSubmitting}>
                                         <Link href="/dashboard">
-                                            Go to Dashboard
-                                            <ArrowRight className="w-4 h-4" />
+                                            {isSubmitting ? <LoaderCircle className="w-5 h-5 animate-spin mx-auto" /> : <>Go to Dashboard
+                                                <ArrowRight className="w-4 h-4" /></>}
+
                                         </Link>
                                     </Button>
                                 ) : (

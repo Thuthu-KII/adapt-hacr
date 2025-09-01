@@ -17,7 +17,7 @@ import {
     Area,
     AreaChart,
 } from "recharts"
-import { TrendingUp, TrendingDown, Clock, ArrowUpRight, ArrowDownRight, Calendar, AlertTriangle } from "lucide-react"
+import { TrendingUp, TrendingDown, Clock, ArrowUpRight, ArrowDownRight, Calendar, AlertTriangle, ChartSpline } from "lucide-react"
 
 // Mock data - in real app this would come from API
 const referralStats = {
@@ -28,7 +28,7 @@ const referralStats = {
 }
 
 const capacityData = [
-    { hospital: "Kenyatta National", current: 1200, total: 2000, percentage: 60 },
+    { hospital: "South Africatta National", current: 1200, total: 2000, percentage: 60 },
     { hospital: "Aga Khan", current: 180, total: 254, percentage: 71 },
     { hospital: "Nairobi Hospital", current: 220, total: 350, percentage: 63 },
     { hospital: "Mater Hospital", current: 190, total: 300, percentage: 63 },
@@ -55,27 +55,37 @@ const weeklyTrends = [
 ]
 
 const responseTimeData = [
-    { time: "0-30min", count: 45, color: "hsl(var(--trust-green))" },
-    { time: "30-60min", count: 32, color: "hsl(var(--warning-amber))" },
-    { time: "1-2hrs", count: 18, color: "hsl(var(--medical-blue))" },
-    { time: "2+ hrs", count: 8, color: "hsl(var(--urgent-red))" },
+    { time: "0-30min", count: 45, color: "var(--trust-green)" },
+    { time: "30-60min", count: 32, color: "var(--warning-amber)" },
+    { time: "1-2hrs", count: 18, color: "var(--medical-blue)" },
+    { time: "2+ hrs", count: 8, color: "var(--urgent-red)" },
 ]
 
 export default function DashboardPage() {
     return (
         <div className="flex flex-col">
-            <PageHeader
-                title="Dashboard"
-                description="Overview of your referral activities"
-                breadcrumbs={[{ label: "Home", href: "/" }, { label: "Dashboard" }]}
-            >
-                <Button variant="outline" size="sm">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Last 30 days
-                </Button>
-                <Button size="sm">Export Report</Button>
-            </PageHeader>
-
+            <div className="border-b bg-card/50 backdrop-blur-sm">
+                <div className="container mx-auto px-4 py-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-medical-blue/10 rounded-lg flex items-center justify-center">
+                                <ChartSpline className="w-6 h-6 text-medical-blue" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+                                <p className="text-muted-foreground mt-1">Overview of your referral activities</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button variant="outline" size="sm">
+                                <Calendar className="w-4 h-4 mr-2" />
+                                Last 30 days
+                            </Button>
+                            <Button size="sm">Export Report</Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div className="flex-1 space-y-4 p-4 pt-6">
                 {/* Key Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -147,7 +157,7 @@ export default function DashboardPage() {
                             <CardDescription>Sent vs Received referrals over the past week</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ResponsiveContainer width="100%" height={300} >
                                 <AreaChart data={weeklyTrends}>
                                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                                     <XAxis dataKey="day" className="text-xs" />
@@ -160,16 +170,16 @@ export default function DashboardPage() {
                                         }}
                                     />
                                     <Area
-                                        type="monotone"
+                                        type="natural"
                                         dataKey="sent"
                                         stackId="1"
-                                        stroke="hsl(var(--medical-blue))"
-                                        fill="hsl(var(--medical-blue))"
+                                        stroke="var(--medical-blue)"
+                                        fill="var(--medical-blue)"
                                         fillOpacity={0.6}
                                         name="Sent"
                                     />
                                     <Area
-                                        type="monotone"
+                                        type="natural"
                                         dataKey="received"
                                         stackId="2"
                                         stroke="hsl(var(--trust-green))"
@@ -323,7 +333,7 @@ export default function DashboardPage() {
                                     patient: "Michael Johnson",
                                     id: "REF-2024-001236",
                                     department: "Orthopedics",
-                                    hospital: "Kenyatta National",
+                                    hospital: "South Africatta National",
                                     status: "completed",
                                     time: "6 hours ago",
                                     urgency: "low",

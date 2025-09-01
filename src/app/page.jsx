@@ -39,7 +39,7 @@ export default function LandingPage() {
     const [isPageLoading, setIsPageLoading] = useState(true);
     const router = useRouter();
     const userId = user?.id ?? null;
-    useEffect(() => {
+    useEffect(() => { 
         if (!isLoaded) return;
 
         const redirectToDashboard = () => {
@@ -64,7 +64,7 @@ export default function LandingPage() {
                     redirectToOnboard();
                 }
             } else {
-                const res = await createUser(user.id, user.emailAddresses[0].emailAddress);
+                const res = await createUser(user.id, user.emailAddresses[0].emailAddress, user.fullName ?? "");
                 if (res) {
                     redirectToOnboard();
                 }
@@ -454,7 +454,7 @@ export default function LandingPage() {
                             </div>
                             <p className="text-muted-foreground text-sm">
                                 Connecting healthcare facilities for better patient outcomes
-                                across Kenya and beyond.
+                                across South Africa and beyond.
                             </p>
                         </div>
 
@@ -515,7 +515,7 @@ export default function LandingPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <MapPin className="w-4 h-4" />
-                                    <span>Nairobi, Kenya</span>
+                                    <span>Nairobi, South Africa</span>
                                 </div>
                             </div>
                         </div>

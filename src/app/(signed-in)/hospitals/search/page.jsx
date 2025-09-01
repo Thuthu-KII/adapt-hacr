@@ -27,7 +27,7 @@ import {
 const hospitals = [
   {
     id: "hosp-001",
-    name: "Kenyatta National Hospital",
+    name: "South Africatta National Hospital",
     type: "hospital",
     address: "Hospital Rd, Upper Hill",
     city: "Nairobi",
@@ -90,8 +90,8 @@ const hospitals = [
     city: "Nairobi",
     state: "Nairobi County",
     phone: "+254-20-5514000",
-    email: "info@materkenya.com",
-    website: "https://materkenya.com",
+    email: "info@materSouth Africa.com",
+    website: "https://materSouth Africa.com",
     distance: 4.1,
     totalCapacity: 300,
     currentCapacity: 190,

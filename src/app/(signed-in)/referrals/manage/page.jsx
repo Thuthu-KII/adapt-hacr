@@ -48,7 +48,7 @@ const referrals = [
       gender: "male",
     },
     referring: {
-      hospital: "Kenyatta National Hospital",
+      hospital: "South Africatta National Hospital",
       doctor: "Dr. Sarah Johnson",
       department: "Emergency Medicine",
     },

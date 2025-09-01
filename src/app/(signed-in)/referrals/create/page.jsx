@@ -477,7 +477,7 @@ export default function CreateReferralPage() {
                     <SelectValue placeholder="Choose a hospital" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="knh">Kenyatta National Hospital</SelectItem>
+                    <SelectItem value="knh">South Africatta National Hospital</SelectItem>
                     <SelectItem value="aku">Aga Khan University Hospital</SelectItem>
                     <SelectItem value="nairobi">Nairobi Hospital</SelectItem>
                     <SelectItem value="mater">Mater Misericordiae Hospital</SelectItem>
