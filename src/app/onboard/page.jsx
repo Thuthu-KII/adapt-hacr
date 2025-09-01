@@ -473,7 +473,7 @@ export default function OnboardPage() {
                             }
                             placeholder="Search for a facility..."
                             getLabel={(item) => item.name}
-                            clearOnSelect={true}
+                            clearOnSelect={false}
                         />)}
 
 
