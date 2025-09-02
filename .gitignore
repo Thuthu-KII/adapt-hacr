@@ -38,3 +38,10 @@ yarn-error.log*
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+/bin
+/data
+/include
+/lib
+/lib64
+/share
